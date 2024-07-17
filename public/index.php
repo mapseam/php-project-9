@@ -11,6 +11,9 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
 use App\Connection;
+use App\SqlQuery;
+use Carbon\Carbon;
+use DiDom\Document;
 
 session_start();
 
