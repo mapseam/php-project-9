@@ -1,0 +1,29 @@
+<?php include 'blocks/header.phtml'; ?>
+
+<main class="flex-grow-1">
+    <div class="container-lg mt-3">
+        <h1>Сайты</h1>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover text-nowrap" data-test="urls">
+                <tbody>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя</th>
+                        <th>Последняя проверка</th>
+                        <th>Код ответа</th>
+                    </tr>
+                    <?php foreach($data as $item): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($item['id']) ?></td>
+                            <td><a href="/urls/<?= htmlspecialchars($item['id']) ?>"><?= htmlspecialchars($item['name']) ?></a></td>
+                            <td><?= isset($item['created_at']) ? htmlspecialchars($item['created_at']) : '' ?></td>
+                            <td><?= isset($item['status_code']) ? htmlspecialchars($item['status_code']) : '' ?></td>
+                        </tr>
+                    <?php endforeach ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<?php include 'blocks/footer.phtml'; ?>

@@ -2,18 +2,25 @@
 
 namespace App;
 
+use Dotenv\Dotenv;
+
 final class Connection
 {
     private static ?Connection $conn = null;
+
     public function connect()
     {
-        if (getenv('DATABASE_URL')) {
-            $databaseUrl = parse_url(getenv('DATABASE_URL'));
+        $dotenv = Dotenv::createImmutable('../');
+        $dotenv->safeLoad();
+        $dbURL = $_ENV['DATABASE_URL'];
+
+        if ($dbURL) {
+            $databaseUrl = parse_url($dbURL);
         }
-        if (isset($databaseUrl['host'])) {
+        if (isset($databaseUrl['scheme'])) {
             $params['host'] = $databaseUrl['host'];
             $params['port'] = isset($databaseUrl['port']) ? $databaseUrl['port'] : 5432;
-            $params['database'] = isset($databaseUrl['path']) ? ltrim($databaseUrl['path'], '/') : null;
+            $params['dbname'] = isset($databaseUrl['path']) ? ltrim($databaseUrl['path'], '/') : null;
             $params['user'] = isset($databaseUrl['user']) ? $databaseUrl['user'] : null;
             $params['password'] = isset($databaseUrl['pass']) ? $databaseUrl['pass'] : null;
         } else {
@@ -27,7 +34,7 @@ final class Connection
             "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
             $params['host'],
             $params['port'],
-            $params['database'],
+            $params['dbname'],
             $params['user'],
             $params['password']
         );

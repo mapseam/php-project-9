@@ -1,0 +1,61 @@
+<?php include 'blocks/header.phtml'; ?>
+<?php  if(isset($flash['success'])): ?>
+    <div class="alert alert-success" role="alert"><?= htmlspecialchars($flash['success'][0]) ?></div>
+<?php endif ?>
+<?php  if(isset($flash['failure'])): ?>
+    <div class="alert alert-danger" role="alert"><?= htmlspecialchars($flash['failure'][0]) ?></div>
+<?php endif ?>
+<?php  if(isset($flash['warning'])): ?>
+    <div class="alert alert-warning" role="alert"><?= htmlspecialchars($flash['warning'][0]) ?></div>
+<?php endif ?>
+<main class="flex-grow-1">
+    <div class="container-lg mt-3">
+        <h1>Сайт: <?= htmlspecialchars($data[0]['name']) ?></h1>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover text-nowrap" data-test="url">
+                <tbody>
+                    <tr>
+                        <td>ID</td>
+                        <td><?= htmlspecialchars($data[0]['id']) ?></td>
+                    </tr>
+                    <tr>
+                        <td>Имя</td>
+                        <td><?= htmlspecialchars($data[0]['name']) ?></td>
+                    </tr>
+                    <tr>
+                        <td>Дата создания</td>
+                        <td><?= htmlspecialchars($data[0]['created_at']) ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <h2 class="mt-5 mb-3">Проверки</h2>
+        <form method="post" action="/urls/<?= htmlspecialchars($data[0]['id']) ?>/checks">
+            <input type="submit" class="btn btn-primary" value="Запустить проверку">
+        </form>
+        <table class="table table-bordered table-hover mt-3" data-test="checks">
+            <tbody>
+                <tr>
+                    <th>ID</th>
+                    <th>Код ответа</th>
+                    <th>h1</th>
+                    <th>title</th>
+                    <th>description</th>
+                    <th>Дата создания</th>
+                </tr>    
+                <?php foreach($checks as $key): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($key['id']) ?></td>
+                        <td><?= isset($key['status_code']) ? htmlspecialchars($key['status_code']) : '' ?></td>
+                        <td><?= isset($key['h1']) ? htmlspecialchars($key['h1']) : '' ?></td>
+                        <td><?= isset($key['title']) ? htmlspecialchars($key['title']) : '' ?></td>
+                        <td><?= isset($key['description']) ? htmlspecialchars($key['description']) : '' ?></td>
+                        <td><?= htmlspecialchars($key['created_at']) ?></td>
+                    </tr>
+                <?php endforeach ?>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<?php include 'blocks/footer.phtml'; ?>
