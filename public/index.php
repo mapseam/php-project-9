@@ -119,16 +119,17 @@ $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router) {
     $id = $args['id'];
     $urls['url_id'] = $id;
-    $urls['time'] = Carbon::now();
 
     $dataBase = new SqlQuery($this->get('connection'));
     $name = $dataBase->query('SELECT name FROM urls WHERE id = :url_id', $urls);
 
+    $urls['time'] = Carbon::now();
     $client = new Client();
     try {
-        $res = $client->request('GET', $name[0]['name']);
+        $res = $client->request('GET', $name[0]['name'], ['verify' => false]);
         $urls['status'] = $res->getStatusCode();
     } catch (ConnectException $e) {
+        
         $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке, не удалось подключиться');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
