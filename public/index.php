@@ -126,14 +126,8 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
     $urls['time'] = Carbon::now();
     $client = new Client();
     try {
-        $res = $client->request('GET', $name[0]['name'], ['verify' => false]);
+        $res = $client->request('GET', $name[0]['name'], ['http_errors' => true]);
         $urls['status'] = $res->getStatusCode();
-    } catch (ConnectException $e) {
-        
-        $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке, не удалось подключиться');
-        return $response->withRedirect(
-            $router->urlFor('urls.show', ['id' => $id])
-        );
     } catch (ClientException $e) {
         $urls['status'] = $e->getResponse()->getStatusCode();
         $urls['title'] = 'Доступ ограничен: проблема с IP';
@@ -143,6 +137,12 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
             VALUES(:url_id, :status, :title, :h1, :time)', $urls);
         
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
+        return $response->withRedirect(
+            $router->urlFor('urls.show', ['id' => $id])
+        );
+    } catch (ConnectException $e) {
+        
+        $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке, не удалось подключиться');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
