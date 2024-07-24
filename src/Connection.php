@@ -17,7 +17,7 @@ final class Connection
         if ($dbURL) {
             $databaseUrl = parse_url($dbURL);
         }
-        if (isset($databaseUrl['scheme'])) {
+        if (isset($databaseUrl['host'])) {
             $params['host'] = $databaseUrl['host'];
             $params['port'] = isset($databaseUrl['port']) ? $databaseUrl['port'] : 5432;
             $params['dbname'] = isset($databaseUrl['path']) ? ltrim($databaseUrl['path'], '/') : null;
