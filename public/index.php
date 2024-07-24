@@ -126,11 +126,11 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
 
     $v = new Validator(['id' => $id]);
     $v->rules(['required' => [['id']], 'integer' => [['id']]]);
-    if (! $v->validate('id')) {
-        foreach ($v->errors() as $attribute => $errors) {
-            foreach ($errors as $error) {
-                $this->get('flash')->addMessage('failure', $error);
-            }
+    if (! $v->validate()) {
+        $errors = $v->errors()['id'];
+
+        foreach ($errors as $error) {
+            $this->get('flash')->addMessage('failure', $error);
         }
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
