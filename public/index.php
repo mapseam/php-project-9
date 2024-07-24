@@ -10,6 +10,7 @@ use Valitron\Validator;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\TransferException;
 use App\Connection;
 use App\SqlQuery;
 use Carbon\Carbon;
@@ -43,7 +44,7 @@ $app->get('/', function ($request, $response) {
 
 $app->get('/urls', function ($request, $response) {
     $dataBase = new SqlQuery($this->get('connection'));
-    
+
     $dataFromBase = $dataBase->query('SELECT id, name FROM urls ORDER BY id DESC');
     $dataFromChecks = $dataBase->query(
         'SELECT url_id, MAX(created_at) AS created_at, status_code
@@ -72,7 +73,7 @@ $app->post('/urls', function ($request, $response) use ($router) {
 
     $v = new Validator(array('name' => $urls['name'], 'count' => strlen((string) $urls['name'])));
     $v->rule('required', 'name')->rule('lengthMax', 'count.*', 255)->rule('url', 'name');
-    
+
     if ($v->validate()) {
         $parseUrl = parse_url($urls['name']);
         $urls['name'] = "{$parseUrl['scheme']}://{$parseUrl['host']}";
@@ -109,15 +110,33 @@ $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
     $dataBase = new SqlQuery($this->get('connection'));
 
     $dataFromBase = $dataBase->query('SELECT * FROM urls WHERE id = :id', $args);
+    if (empty($dataFromBase)) {
+        return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
+    }
+
     $messages = $this->get('flash')->getMessages();
     $dataFromChecks = $dataBase->query('SELECT * FROM url_checks WHERE url_id = :id ORDER BY id DESC', $args);
-    
+
     $params = ['data' => $dataFromBase, 'flash' => $messages, 'checks' => $dataFromChecks];
     return $this->get('renderer')->render($response, 'url.phtml', $params);
 })->setName("urls.show");
 
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router) {
     $id = $args['id'];
+
+    $v = new Validator(['id' => $id]);
+    $v->rules(['required' => 'id', 'integer' => 'id']);
+    if (! $v->validate()) {
+        foreach ($validator->errors() as $arr) {
+            foreach ($arr as $error) {
+                $this->get('flash')->addMessage('failure', $error);
+            }
+        }
+        return $response->withRedirect(
+            $router->urlFor('urls.show', ['id' => $id])
+        );
+    }
+
     $urls['url_id'] = $id;
 
     $dataBase = new SqlQuery($this->get('connection'));
@@ -132,17 +151,21 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
         $urls['status'] = $e->getResponse()->getStatusCode();
         $urls['title'] = 'Доступ ограничен: проблема с IP';
         $urls['h1'] = 'Доступ ограничен: проблема с IP';
-        
+
         $dataBase->query('INSERT INTO url_checks(url_id, status_code, title, h1, created_at)
             VALUES(:url_id, :status, :title, :h1, :time)', $urls);
-        
+
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
     } catch (ConnectException $e) {
-        
         $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке, не удалось подключиться');
+        return $response->withRedirect(
+            $router->urlFor('urls.show', ['id' => $id])
+        );
+    } catch (TransferException $e) {
+        $this->get('flash')->addMessage('error', 'Упс, что-то пошло не так...');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );

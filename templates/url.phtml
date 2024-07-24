@@ -2,11 +2,11 @@
 <?php  if(isset($flash['success'])): ?>
     <div class="alert alert-success" role="alert"><?= htmlspecialchars($flash['success'][0]) ?></div>
 <?php endif ?>
-<?php  if(isset($flash['failure'])): ?>
-    <div class="alert alert-danger" role="alert"><?= htmlspecialchars($flash['failure'][0]) ?></div>
-<?php endif ?>
 <?php  if(isset($flash['warning'])): ?>
     <div class="alert alert-warning" role="alert"><?= htmlspecialchars($flash['warning'][0]) ?></div>
+<?php endif ?>
+<?php  if(isset($flash['failure'])): ?>
+    <div class="alert alert-danger" role="alert"><?= htmlspecialchars($flash['failure'][0]) ?></div>
 <?php endif ?>
 <main class="flex-grow-1">
     <div class="container-lg mt-3">
@@ -33,8 +33,8 @@
         <form method="post" action="/urls/<?= htmlspecialchars($data[0]['id']) ?>/checks">
             <input type="submit" class="btn btn-primary" value="Запустить проверку">
         </form>
-        <table class="table table-bordered table-hover mt-3" data-test="checks">
-            <tbody>
+        <table class="table table-bordered table-hover" data-test="checks">
+            <thead>
                 <tr>
                     <th>ID</th>
                     <th>Код ответа</th>
@@ -42,15 +42,17 @@
                     <th>title</th>
                     <th>description</th>
                     <th>Дата создания</th>
-                </tr>    
-                <?php foreach($checks as $key): ?>
+                </tr>
+            </thead>
+            <tbody>   
+                <?php foreach($checks as $check): ?>
                     <tr>
-                        <td><?= htmlspecialchars($key['id']) ?></td>
-                        <td><?= isset($key['status_code']) ? htmlspecialchars($key['status_code']) : '' ?></td>
-                        <td><?= isset($key['h1']) ? htmlspecialchars($key['h1']) : '' ?></td>
-                        <td><?= isset($key['title']) ? htmlspecialchars($key['title']) : '' ?></td>
-                        <td><?= isset($key['description']) ? htmlspecialchars($key['description']) : '' ?></td>
-                        <td><?= htmlspecialchars($key['created_at']) ?></td>
+                        <td><?= htmlspecialchars($check['id']) ?></td>
+                        <td><?= isset($check['status_code']) ? htmlspecialchars($check['status_code']) : '' ?></td>
+                        <td class="text-break"><?= isset($check['h1']) ? htmlspecialchars($check['h1']) : '' ?></td>
+                        <td class="text-break"><?= isset($check['title']) ? htmlspecialchars($check['title']) : '' ?></td>
+                        <td class="text-break"><?= isset($check['description']) ? htmlspecialchars($check['description']) : '' ?></td>
+                        <td><?= htmlspecialchars($check['created_at']) ?></td>
                     </tr>
                 <?php endforeach ?>
             </tbody>
