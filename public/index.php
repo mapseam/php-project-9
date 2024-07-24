@@ -125,7 +125,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
     $id = $args['id'];
 
     $v = new Validator(['id' => $id]);
-    $v->rules(['required' => 'id', 'integer' => 'id']);
+    $v->rules(['required' => [['id']], 'integer' => [['id']]]);
     if (! $v->validate()) {
         foreach ($v->errors() as $attribute => $errors) {
             foreach ($errors as $error) {
