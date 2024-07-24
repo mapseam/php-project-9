@@ -15,6 +15,7 @@ use App\Connection;
 use App\SqlQuery;
 use Carbon\Carbon;
 use DiDom\Document;
+use Illuminate\Support\Collection;
 
 session_start();
 
@@ -127,11 +128,9 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
     $v = new Validator(['id' => $id]);
     $v->rules(['required' => 'id', 'integer' => 'id']);
     if (! $v->validate()) {
-        $errors = $v->errors();
-        foreach ($errors as $arr) {
-            foreach ($arr as $error) {
-                $this->get('flash')->addMessage('failure', $error);
-            }
+        $errors = collect($v->errors())->flatten();
+        foreach ($errors as $error) {
+            $this->get('flash')->addMessage('failure', $error);
         }
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
