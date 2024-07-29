@@ -24,4 +24,5 @@ make start
 ```
 
 Open in browser: http://0.0.0.0:8000
-(Note: On the free tariff, connection to the database is possible within 3 months)
+(Note: On the free tariff, connection to the database is possible within 1 month.
+My database will expire on August 24, 2024.)

@@ -45,8 +45,8 @@ $app->get('/', function ($request, $response) {
 $app->get('/urls', function ($request, $response) {
     $dataBase = new SqlQuery($this->get('connection'));
 
-    $dataFromBase = $dataBase->query('SELECT id, name FROM urls ORDER BY id DESC');
-    $dataFromChecks = $dataBase->query(
+    $dataFromBase = $dataBase->select('SELECT id, name FROM urls ORDER BY id DESC');
+    $dataFromChecks = $dataBase->select(
         'SELECT url_id, MAX(created_at) AS created_at, status_code
         FROM url_checks
         GROUP BY url_id, status_code'
@@ -63,59 +63,55 @@ $app->get('/urls', function ($request, $response) {
     }, $dataFromBase);
 
     $params = ['data' => $combinedData];
-    return $this->get('renderer')->render($response, 'show.phtml', $params);
+    return $this->get('renderer')->render($response, 'urls.phtml', $params);
 })->setName("urls.store");
 
 $app->post('/urls', function ($request, $response) use ($router) {
-    $urls = $request->getParsedBodyParam('url');
+    $data = $request->getParsedBodyParam('data');
+
+    $validator = new Valitron\Validator(['url' => $data['url']]);
+    $validator->stopOnFirstFail();
+    $validator->rule('required', 'url')->message('URL не должен быть пустым');
+    $validator->rule('url', 'url')->message('Некорректный URL');
+    $validator->rule('lengthMax', 'url', 255)->message('Длина URL более 255 символов');
+
+    $errors = [];
+    if (! $validator->validate() && isset($validator->errors()['url'])) {
+        $errors = $validator->errors()['url'];
+        $params = ['errors' => $errors];
+        return $this->get('renderer')->render($response->withStatus(422), 'main.phtml', $params);
+    }
+    
+    $parsedUrl = parse_url(mb_strtolower($data['url']));
+    $data['url'] = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
+
     $dataBase = new SqlQuery($this->get('connection'));
-    $error = [];
+    $searchName = $dataBase->select('SELECT id FROM urls WHERE name = :url', $data);
 
-    $v = new Validator(array('name' => $urls['name'], 'count' => strlen((string) $urls['name'])));
-    $v->rule('required', 'name')->rule('lengthMax', 'count.*', 255)->rule('url', 'name');
-
-    if ($v->validate()) {
-        $parseUrl = parse_url($urls['name']);
-        $urls['name'] = "{$parseUrl['scheme']}://{$parseUrl['host']}";
-
-        $searchName = $dataBase->query('SELECT id FROM urls WHERE name = :name', $urls);
-
-        if (count($searchName) !== 0) {
-            $this->get('flash')->addMessage('success', 'Страница уже существует');
-            return $response->withRedirect(
-                $router->urlFor('urls.show', ['id' => $searchName[0]['id']])
-            );
-        }
-
-        $urls['time'] = Carbon::now();
-        $dataBase->query('INSERT INTO urls(name, created_at) VALUES(:name, :time) RETURNING id', $urls);
-
-        $id = $dataBase->query('SELECT MAX(id) FROM urls');
-        $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
-
-        return $response->withRedirect($router->urlFor('urls.show', ['id' => $id[0]['max']]));
-    } else {
-        if (isset($urls) && strlen($urls['name']) < 1) {
-            $error['name'] = 'URL не должен быть пустым';
-        } elseif (isset($urls)) {
-            $error['name'] = 'Некорректный URL';
-        }
+    if (count($searchName) !== 0) {
+        $this->get('flash')->addMessage('success', 'Страница уже существует');
+        return $response->withRedirect(
+            $router->urlFor('urls.show', ['id' => $searchName[0]['id']])
+        );
     }
 
-    $params = ['erorrs' => $error];
-    return $this->get('renderer')->render($response->withStatus(422), 'main.phtml', $params);
+    $data['time'] = Carbon::now();
+    $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:url, :time) RETURNING id', $data);
+    $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
+
+    return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
 });
 
 $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
     $dataBase = new SqlQuery($this->get('connection'));
 
-    $dataFromBase = $dataBase->query('SELECT * FROM urls WHERE id = :id', $args);
-    if (empty($dataFromBase)) {
+    $dataFromBase = $dataBase->select('SELECT * FROM urls WHERE id = :id', $args);
+    if ($dataFromBase == []) {
         return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
     }
 
     $messages = $this->get('flash')->getMessages();
-    $dataFromChecks = $dataBase->query('SELECT * FROM url_checks WHERE url_id = :id ORDER BY id DESC', $args);
+    $dataFromChecks = $dataBase->select('SELECT * FROM url_checks WHERE url_id = :id ORDER BY id DESC', $args);
 
     $params = ['data' => $dataFromBase, 'flash' => $messages, 'checks' => $dataFromChecks];
     return $this->get('renderer')->render($response, 'url.phtml', $params);
@@ -124,10 +120,13 @@ $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router) {
     $id = $args['id'];
 
-    $v = new Validator(['id' => $id]);
-    $v->rules(['required' => [['id']], 'integer' => [['id']]]);
-    if (! $v->validate() && isset($v->errors()['id'])) {
-        $errors = $v->errors()['id'];
+    $validator = new Validator(['id' => $id]);
+    $validator->stopOnFirstFail();
+    $validator->rule('required', 'id')->message('id не должен быть пустым');
+    $validator->rule('integer', 'id')->message('id должен быть целым числом');
+
+    if (! $validator->validate() && isset($validator->errors()['id'])) {
+        $errors = $validator->errors()['id'];
 
         foreach ($errors as $error) {
             $this->get('flash')->addMessage('failure', $error);
@@ -137,30 +136,30 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
         );
     }
 
-    $urls['url_id'] = $id;
+    $data['url_id'] = $id;
 
     $dataBase = new SqlQuery($this->get('connection'));
-    $name = $dataBase->query('SELECT name FROM urls WHERE id = :url_id', $urls);
+    $url = $dataBase->select('SELECT name FROM urls WHERE id = :url_id', $data);
 
-    $urls['time'] = Carbon::now();
+    $data['time'] = Carbon::now();
     $client = new Client();
     try {
-        $res = $client->request('GET', $name[0]['name'], ['http_errors' => true]);
-        $urls['status'] = $res->getStatusCode();
+        $res = $client->request('GET', $url[0]['name'], ['http_errors' => true]);
+        $data['status'] = $res->getStatusCode();
     } catch (ClientException $e) {
-        $urls['status'] = $e->getResponse()->getStatusCode();
-        $urls['title'] = 'Доступ ограничен: проблема с IP';
-        $urls['h1'] = 'Доступ ограничен: проблема с IP';
+        $data['status'] = $e->getResponse()->getStatusCode();
+        $data['title'] = 'Доступ ограничен: проблема с IP';
+        $data['h1'] = 'Доступ ограничен: проблема с IP';
 
-        $dataBase->query('INSERT INTO url_checks(url_id, status_code, title, h1, created_at)
-            VALUES(:url_id, :status, :title, :h1, :time)', $urls);
+        $dataBase->insert('INSERT INTO url_checks(url_id, status_code, title, h1, created_at)
+            VALUES(:url_id, :status, :title, :h1, :time)', $data);
 
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
     } catch (ConnectException $e) {
-        $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке, не удалось подключиться');
+        $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке - не удалось подключиться к серверу');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
@@ -176,23 +175,23 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
 
     $title = optional($document->first('title'));
     if ($title !== null) {
-        $urls['title'] = $title->text();
+        $data['title'] = $title->text();
     }
 
     $h1 = optional($document->first('h1'));
     if ($h1 !== null) {
-        $urls['h1'] = $h1->text();
+        $data['h1'] = $h1->text();
     }
 
-    $meta = optional($document->first('meta[name="description"]'));
-    if ($meta !== null) {
-        $urls['meta'] = $meta->getAttribute('content');
+    $description = optional($document->first('meta[name="description"]'));
+    if ($description !== null) {
+        $data['meta'] = $description->getAttribute('content');
     }
 
-    $dataBase->query(
+    $dataBase->insert(
         'INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) 
         VALUES(:url_id, :status, :h1, :title, :meta, :time)',
-        $urls
+        $data
     );
 
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');

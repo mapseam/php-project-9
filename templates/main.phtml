@@ -8,12 +8,15 @@
                 <p class="lead">Бесплатно проверяйте сайты на SEO пригодность</p>
                 <form action="/urls" method="post" class="row" reqired>
                     <div class="col-8">
-                        <input type="text" name="url[name]" value="" class="form-control form-control-lg 
-                        <?php if (isset($erorrs['name'])): ?> is-invalid <?php endif ?>" placeholder="https://www.example.com">
-                            <?php if (isset($erorrs['name'])): ?>
-                                <div class="invalid-feedback"><?= htmlspecialchars(($erorrs['name'])) ?></div>
-                            <?php endif ?>
+                        <input type="text" name="data[url]" value="" class="form-control form-control-lg <?php if (isset($errors)): ?>is-invalid<?php endif ?>" placeholder="https://www.example.com">
                     </div>
+<?php if (isset($errors)): ?>
+    <?php foreach ($errors as $error): ?>
+                        <div class="invalid-feedback">
+        <?php htmlspecialchars($error) ?>
+                        </div>
+    <?php endforeach ?>
+<?php endif ?>
                     <div class="col-2">
                         <input type="submit" class="btn btn-primary btn-lg ms-3 px-5 text-uppercase mx-3" value="Проверить">
                     </div>
