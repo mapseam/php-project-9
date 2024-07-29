@@ -67,9 +67,9 @@ $app->get('/urls', function ($request, $response) {
 })->setName("urls.store");
 
 $app->post('/urls', function ($request, $response) use ($router) {
-    $data = $request->getParsedBodyParam('data');
+    $url = $request->getParsedBodyParam('url');
 
-    $validator = new Valitron\Validator(['url' => $data['url']]);
+    $validator = new Validator(['url' => $url['name']]);
     $validator->stopOnFirstFail();
     $validator->rule('required', 'url')->message('URL не должен быть пустым');
     $validator->rule('url', 'url')->message('Некорректный URL');
@@ -82,11 +82,11 @@ $app->post('/urls', function ($request, $response) use ($router) {
         return $this->get('renderer')->render($response->withStatus(422), 'main.phtml', $params);
     }
     
-    $parsedUrl = parse_url(mb_strtolower($data['url']));
-    $data['url'] = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
+    $parsedUrl = parse_url(mb_strtolower($url['name']));
+    $url['name'] = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
 
     $dataBase = new SqlQuery($this->get('connection'));
-    $searchName = $dataBase->select('SELECT id FROM urls WHERE name = :url', $data);
+    $searchName = $dataBase->select('SELECT id FROM urls WHERE name = :name', $url);
 
     if (count($searchName) !== 0) {
         $this->get('flash')->addMessage('success', 'Страница уже существует');
@@ -95,8 +95,8 @@ $app->post('/urls', function ($request, $response) use ($router) {
         );
     }
 
-    $data['time'] = Carbon::now();
-    $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:url, :time) RETURNING id', $data);
+    $url['time'] = Carbon::now();
+    $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:name, :time) RETURNING id', $url);
     $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
 
     return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
@@ -141,13 +141,12 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
     $dataBase = new SqlQuery($this->get('connection'));
     $url = $dataBase->select('SELECT name FROM urls WHERE id = :url_id', $data);
 
-    $data['time'] = Carbon::now();
     $client = new Client();
     try {
         $res = $client->request('GET', $url[0]['name'], ['http_errors' => true]);
-        $data['status'] = $res->getStatusCode();
+        $data['status_code'] = $res->getStatusCode();
     } catch (ClientException $e) {
-        $data['status'] = $e->getResponse()->getStatusCode();
+        $data['status_code'] = $e->getResponse()->getStatusCode();
         $data['title'] = 'Доступ ограничен: проблема с IP';
         $data['h1'] = 'Доступ ограничен: проблема с IP';
 
@@ -180,17 +179,25 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
 
     $h1 = optional($document->first('h1'));
     if ($h1 !== null) {
-        $data['h1'] = $h1->text();
+        $validator = new Validator(['h1' => $h1->text()]);
+        $validator->rule('lengthMax', 'h1', 255);
+        if (! $validator->validate()) {
+            $data['h1'] = mb_substr($h1->text(), 0, 255);
+        } else {
+            $data['h1'] = $h1->text();
+        }
     }
 
     $description = optional($document->first('meta[name="description"]'));
     if ($description !== null) {
-        $data['meta'] = $description->getAttribute('content');
+        $data['description'] = $description->getAttribute('content');
     }
+
+    $data['created_at'] = Carbon::now();
 
     $dataBase->insert(
         'INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) 
-        VALUES(:url_id, :status, :h1, :title, :meta, :time)',
+        VALUES(:url_id, :status_code, :h1, :title, :description, :created_at)',
         $data
     );
 
