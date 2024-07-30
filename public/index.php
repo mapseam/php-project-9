@@ -86,12 +86,12 @@ $app->post('/urls', function ($request, $response) use ($router) {
     $url['name'] = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
 
     $dataBase = new SqlQuery($this->get('connection'));
-    $searchName = $dataBase->select('SELECT id FROM urls WHERE name = :name', $url);
+    $idForName = $dataBase->select('SELECT id FROM urls WHERE name = :name', $url);
 
-    if (count($searchName) !== 0) {
+    if (count($idForName) !== 0) {
         $this->get('flash')->addMessage('success', 'Страница уже существует');
         return $response->withRedirect(
-            $router->urlFor('urls.show', ['id' => $searchName[0]['id']])
+            $router->urlFor('urls.show', ['id' => $idForName[0]['id']])
         );
     }
 
@@ -99,7 +99,7 @@ $app->post('/urls', function ($request, $response) use ($router) {
     $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:name, :created_at) RETURNING id', $url);
     $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
 
-    return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
+    return $response->withRedirect($router->urlFor('urls.show', ['id' => (string) $id]));
 });
 
 $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
