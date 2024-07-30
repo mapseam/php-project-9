@@ -95,8 +95,8 @@ $app->post('/urls', function ($request, $response) use ($router) {
         );
     }
 
-    $url['time'] = Carbon::now();
-    $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:name, :time) RETURNING id', $url);
+    $url['created_at'] = Carbon::now();
+    $id = $dataBase->insert('INSERT INTO urls(name, created_at) VALUES(:name, :created_at) RETURNING id', $url);
     $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
 
     return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
@@ -105,15 +105,15 @@ $app->post('/urls', function ($request, $response) use ($router) {
 $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
     $dataBase = new SqlQuery($this->get('connection'));
 
-    $dataFromBase = $dataBase->select('SELECT * FROM urls WHERE id = :id', $args);
-    if ($dataFromBase == []) {
+    $dataFromURLs = $dataBase->select('SELECT * FROM urls WHERE id = :id', $args);
+    if ($dataFromURLs == []) {
         return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
     }
 
     $messages = $this->get('flash')->getMessages();
     $dataFromChecks = $dataBase->select('SELECT * FROM url_checks WHERE url_id = :id ORDER BY id DESC', $args);
 
-    $params = ['data' => $dataFromBase, 'flash' => $messages, 'checks' => $dataFromChecks];
+    $params = ['flash' => $messages, 'urls' => $dataFromURLs, 'checks' => $dataFromChecks];
     return $this->get('renderer')->render($response, 'url.phtml', $params);
 })->setName("urls.show");
 
