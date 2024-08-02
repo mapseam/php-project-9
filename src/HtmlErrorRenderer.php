@@ -6,9 +6,9 @@ use Slim\Exception\HttpException;
 use Slim\Interfaces\ErrorRendererInterface;
 use Throwable;
 
-class MyErrorRenderer implements ErrorRendererInterface
+class HtmlErrorRenderer implements ErrorRendererInterface
 {
-    public function __construct(
+    /*public function __construct(
         protected string $defaultTitle = 'Ошибка приложения Slim',
         protected string $defaultDescription = 'Произошла ошибка. Приносим извинения за временные неудобства.',
     ) {
@@ -26,7 +26,7 @@ class MyErrorRenderer implements ErrorRendererInterface
         }
 
         return $exception->getMessage() !== '' ? $exception->getMessage() : $exception->getDescription();
-    }
+    }*/
 
     public function __invoke(Throwable $exception, bool $displayErrorDetails): string
     {

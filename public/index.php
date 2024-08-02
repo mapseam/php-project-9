@@ -13,7 +13,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\TransferException;
 use App\Connection;
 use App\SqlQuery;
-use App\MyErrorRenderer;
+use App\HtmlErrorRenderer;
 use Carbon\Carbon;
 use DiDom\Document;
 
@@ -38,7 +38,7 @@ $app->add(MethodOverrideMiddleware::class);
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
 $errorHandler = $errorMiddleware->getDefaultErrorHandler();
-$errorHandler->registerErrorRenderer('text/html', MyErrorRenderer::class);
+$errorHandler->registerErrorRenderer('text/html', HtmlErrorRenderer::class);
 
 $router = $app->getRouteCollector()->getRouteParser();
 
