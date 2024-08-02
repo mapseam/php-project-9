@@ -4,31 +4,31 @@ namespace App;
 
 use Slim\Exception\HttpException;
 use Slim\Interfaces\ErrorRendererInterface;
-use Throwable;
+//use Throwable;
 
 class HtmlErrorRenderer implements ErrorRendererInterface
 {
-    /*public function __construct(
+    public function __construct(
         protected string $defaultTitle = 'Ошибка приложения Slim',
         protected string $defaultDescription = 'Произошла ошибка. Приносим извинения за временные неудобства.',
     ) {
     }
 
-    protected function getErrorTitle(Throwable $exception): string
+    protected function getErrorTitle(\Throwable $exception): string
     {
         return $exception instanceof HttpException ? $exception->getTitle() : $this->defaultTitle;
     }
 
-    protected function getErrorDescription(Throwable $exception): string
+    protected function getErrorDescription(\Throwable $exception): string
     {
         if (!$exception instanceof HttpException) {
             return $this->defaultDescription;
         }
 
         return $exception->getMessage() !== '' ? $exception->getMessage() : $exception->getDescription();
-    }*/
+    }
 
-    public function __invoke(Throwable $exception, bool $displayErrorDetails): string
+    public function __invoke(\Throwable $exception, bool $displayErrorDetails): string
     {
         $title = $this->getErrorTitle($exception);
         if ($displayErrorDetails) {
@@ -65,7 +65,7 @@ class HtmlErrorRenderer implements ErrorRendererInterface
         OUTPUT;
     }
 
-    private function formatException(Throwable $exception): string
+    private function formatException(\Throwable $exception): string
     {
         $outputString = <<<'OUTPUT'
         <div><strong>Тип:</strong> %s</div>
