@@ -13,6 +13,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\TransferException;
 use App\Connection;
 use App\SqlQuery;
+use App\MyErrorRenderer;
 use Carbon\Carbon;
 use DiDom\Document;
 
@@ -34,7 +35,10 @@ $container->set('flash', function () {
 
 $app = AppFactory::createFromContainer($container);
 $app->add(MethodOverrideMiddleware::class);
-$app->addErrorMiddleware(true, true, true);
+$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+
+$errorHandler = $errorMiddleware->getDefaultErrorHandler();
+$errorHandler->registerErrorRenderer('text/html', MyErrorRenderer::class);
 
 $router = $app->getRouteCollector()->getRouteParser();
 
@@ -81,7 +85,7 @@ $app->post('/urls', function ($request, $response) use ($router) {
         $params = ['errors' => $errors];
         return $this->get('renderer')->render($response->withStatus(422), 'main.phtml', $params);
     }
-    
+
     $parsedUrl = parse_url(mb_strtolower($url['name']));
     $url['name'] = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
 
@@ -106,8 +110,9 @@ $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
     $dataBase = new SqlQuery($this->get('connection'));
 
     $dataFromURLs = $dataBase->select('SELECT * FROM urls WHERE id = :id', $args);
-    if ($dataFromURLs == []) {
-        return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
+    if ($dataFromURLs === []) {
+        throw new \Slim\Exception\HttpNotFoundException($request, $response);
+        //return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
     }
 
     $messages = $this->get('flash')->getMessages();
@@ -143,7 +148,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
 
     $client = new Client();
     try {
-        $res = $client->request('GET', $url[0]['name'], ['http_errors' => true]);
+        $res = $client->request('GET', $url[0]['name'], ['http_errors' => true, 'allow_redirects' => true]);
         $data['status_code'] = $res->getStatusCode();
     } catch (ClientException $e) {
         $data['status_code'] = $e->getResponse()->getStatusCode();
@@ -163,7 +168,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
             $router->urlFor('urls.show', ['id' => $id])
         );
     } catch (TransferException $e) {
-        $this->get('flash')->addMessage('error', 'Упс, что-то пошло не так...');
+        $this->get('flash')->addMessage('failure', 'Упс, что-то пошло не так...');
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
