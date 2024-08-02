@@ -4,6 +4,7 @@ namespace App;
 
 use Slim\Exception\HttpException;
 use Slim\Interfaces\ErrorRendererInterface;
+
 //use Throwable;
 
 class HtmlErrorRenderer implements ErrorRendererInterface
