@@ -2,6 +2,7 @@
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use Psr\Http\Message\ServerRequestInterface;
 use Slim\Factory\AppFactory;
 use Slim\Flash\Messages;
 use Slim\Middleware\MethodOverrideMiddleware;
@@ -13,11 +14,13 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\TransferException;
 use App\Connection;
 use App\SqlQuery;
-use App\HtmlErrorRenderer;
+use App\MyHtmlErrorRenderer;
 use Carbon\Carbon;
 use DiDom\Document;
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 
 $container = new Container();
 $container->set('renderer', function () {
@@ -34,13 +37,40 @@ $container->set('flash', function () {
 });
 
 $app = AppFactory::createFromContainer($container);
-$app->add(MethodOverrideMiddleware::class);
-$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+$app->addRoutingMiddleware();
 
-$errorHandler = $errorMiddleware->getDefaultErrorHandler();
-$errorHandler->registerErrorRenderer('text/html', HtmlErrorRenderer::class);
+$app->add(function ($request, $handler) {
+    return $handler->handle($request);
+});
 
+$errorMiddleware = $app->addErrorMiddleware(false, true, true);
 $router = $app->getRouteCollector()->getRouteParser();
+
+$customErrorHandler = function (
+    ServerRequestInterface $request,
+    Throwable $exception,
+    bool $displayErrorDetails,
+    bool $logErrors,
+    bool $logErrorDetails
+) use (
+    $app,
+    $router
+) {
+    $response = $app->getResponseFactory()->createResponse();
+
+    if ($exception->getCode() === 404) {
+        return $this->get('renderer')->render($response, "404.phtml", compact('router'))
+            ->withStatus(404);
+    }
+
+    if ($exception->getCode() === 500) {
+        return $this->get('renderer')->render($response, "500.phtml")
+            ->withStatus(500);
+    }
+
+    return $response;
+};
+$errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
 $app->get('/', function ($request, $response) {
     return $this->get('renderer')->render($response, 'main.phtml');
@@ -112,7 +142,6 @@ $app->get('/urls/{id:[0-9]+}', function ($request, $response, $args) {
     $dataFromURLs = $dataBase->select('SELECT * FROM urls WHERE id = :id', $args);
     if ($dataFromURLs === []) {
         throw new \Slim\Exception\HttpNotFoundException($request, $response);
-        //return $this->get('renderer')->render($response->withStatus(404), 'error404.phtml');
     }
 
     $messages = $this->get('flash')->getMessages();
@@ -148,7 +177,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
 
     $client = new Client();
     try {
-        $res = $client->request('GET', $url[0]['name'], ['http_errors' => true, 'allow_redirects' => true]);
+        $res = $client->request('GET', $url[0]['name'], ['http_errors' => true]);
         $data['status_code'] = $res->getStatusCode();
     } catch (ClientException $e) {
         $data['status_code'] = $e->getResponse()->getStatusCode();
@@ -163,7 +192,10 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
             $router->urlFor('urls.show', ['id' => $id])
         );
     } catch (ConnectException $e) {
-        $this->get('flash')->addMessage('failure', 'Произошла ошибка при проверке - не удалось подключиться к серверу');
+        $this->get('flash')->addMessage(
+            'failure',
+            'Произошла ошибка при проверке - не удалось подключиться к серверу'
+        );
         return $response->withRedirect(
             $router->urlFor('urls.show', ['id' => $id])
         );
